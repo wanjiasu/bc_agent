@@ -543,3 +543,96 @@ def get_injuries(fixture_id: int) -> List[Dict]:
             continue
     
     return extracted_injuries
+
+@tool
+def get_fixture_odds(fixture_id: int) -> Dict:
+    """
+    通过 fixture_id 获取三家博彩公司（William Hill、Ladbrokes、Bet365）的欧赔。
+
+    Args:
+        fixture_id (int): 比赛ID
+
+    Returns:
+        dict: 结构为：
+            {
+              "fixture_id": <int>,
+              "odds": {
+                "William Hill": {"home": <float>, "draw": <float>, "away": <float>} | None,
+                "Ladbrokes": {"home": <float>, "draw": <float>, "away": <float>} | None,
+                "Bet365": {"home": <float>, "draw": <float>, "away": <float>} | None
+              }
+            }
+    """
+    data = _client._make_request('/odds', {'fixture': fixture_id})
+    if not data or 'response' not in data or not data['response']:
+        return {
+            'fixture_id': fixture_id,
+            'odds': {
+                'William Hill': None,
+                'Ladbrokes': None,
+                'Bet365': None,
+            }
+        }
+
+    try:
+        base = data['response'][0]
+        bookmakers = base.get('bookmakers', [])
+        # 优先使用响应中的 fixture.id
+        fx_id = base.get('fixture', {}).get('id', fixture_id)
+        allowed = {'William Hill', 'Ladbrokes', 'Bet365'}
+        result_odds: Dict[str, Dict[str, float] | None] = {name: None for name in allowed}
+
+        def norm_key(v):
+            if v is None:
+                return None
+            s = str(v).strip().lower()
+            if s in {'home', '1'}:
+                return 'home'
+            if s in {'draw', 'x'}:
+                return 'draw'
+            if s in {'away', '2'}:
+                return 'away'
+            return None
+
+        for bm in bookmakers:
+            name = bm.get('name')
+            if name not in allowed:
+                continue
+            bets = bm.get('bets', [])
+            target = None
+            for bet in bets:
+                if bet.get('name') == 'Match Winner' or bet.get('id') == 1:
+                    target = bet
+                    break
+            if not target:
+                continue
+
+            values = target.get('values', [])
+            odds_map: Dict[str, float] = {}
+            for item in values:
+                key = norm_key(item.get('value'))
+                odd = item.get('odd')
+                if key is None or odd is None:
+                    continue
+                try:
+                    odds_map[key] = float(str(odd))
+                except ValueError:
+                    continue
+
+            if odds_map:
+                result_odds[name] = odds_map
+
+        return {
+            'fixture_id': fx_id,
+            'odds': result_odds
+        }
+    except Exception:
+        # 出错时兜底返回空结构
+        return {
+            'fixture_id': fixture_id,
+            'odds': {
+                'William Hill': None,
+                'Ladbrokes': None,
+                'Bet365': None,
+            }
+        }

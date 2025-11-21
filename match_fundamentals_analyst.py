@@ -10,7 +10,7 @@ from langchain_core.tools import tool
 from langgraph.graph import StateGraph, START, END, MessagesState
 from langgraph.prebuilt import ToolNode
 load_dotenv()
-from api_football_tools import get_fixture_basic_info, get_standing_home_info, get_standing_away_info, get_fixture_head2head, get_home_last_10, get_away_last_10, get_injuries
+from api_football_tools import get_fixture_basic_info, get_standing_home_info, get_standing_away_info, get_fixture_head2head, get_home_last_10, get_away_last_10, get_injuries, get_fixture_odds
 
 # 模型初始化
 # 注意：langchain-openai 1.0.x 使用参数 `model` 而不是 `model_name`
@@ -54,10 +54,11 @@ def create_fundamentals_analyst(llm):
             get_fixture_basic_info,
             get_standing_home_info,
             get_standing_away_info,
+            get_fixture_odds,
         ]
 
         system_message = (
-            "你是一名研究员, 负责分析一场足球比赛的基本面信息. 请撰写一份全面的足球比赛的基本面信息报告, 内容包括球队实力面, 球队近期状态, 阵容与伤停, 战意, 以便下注者全面了解这场足球比赛. 确保包含尽可能多的细节，不要简单陈述趋势好坏，需提供详细且精细的分析与见解，以帮助交易者做出决策。"
+            "你是一名研究员, 负责分析一场足球比赛的基本面信息. 请撰写一份全面的足球比赛的基本面信息报告, 内容包括球队实力面, 球队近期状态, 阵容与伤停, 战意, 赛前欧赔以便下注者全面了解这场足球比赛. 确保包含尽可能多的细节，不要简单陈述趋势好坏，需提供详细且精细的分析与见解，以帮助交易者做出决策。"
             + "请在报告末尾附加一个Markdown表格，用于整理报告中的关键要点，确保内容条理清晰、易于阅读。"
             + "请使用以下可用工具: "
             + "get_fixture_head2head: 获取主队和客队的最近比赛记录."
@@ -67,6 +68,7 @@ def create_fundamentals_analyst(llm):
             + "get_fixture_basic_info: 获取比赛基本信息."
             + "get_standing_home_info: 获取主队积分榜信息."
             + "get_standing_away_info: 获取客队积分榜信息."
+            + "get_fixture_odds: 获取比赛威廉希尔, 立博, bet365欧赔信息."
         )
 
         prompt = ChatPromptTemplate.from_messages([
@@ -125,6 +127,7 @@ tools = [
             get_fixture_basic_info,
             get_standing_home_info,
             get_standing_away_info,
+            get_fixture_odds,
         ]
 
 tool_node = ToolNode(tools=tools)
